@@ -1,5 +1,5 @@
-import { Socket, createServer } from "net";
-import { readFileSync, writeFile, writeFileSync } from "fs";
+import { createServer } from "net";
+import { readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "./types/config";
 import { HostInfo, ConnectedHosts } from "./types/host";
