@@ -5,8 +5,12 @@
   "main": "client.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node client.js"
+    "start": "node cliente.js",
+    "start_dev": "nodemon cliente.js"
   },
   "author": "Amyr, Kalyl",
-  "license": "GPL-3.0"
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
 }
