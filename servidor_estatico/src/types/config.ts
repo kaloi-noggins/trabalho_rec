@@ -1,8 +1,8 @@
 /**
- * Arquivo de configuração do Servidor Esático
+ * Arquivo de configuração do Servidor Estático
  */
 export type Config = {
     uuid: string,
-    host: string,
+    ip: string,
     port: number
 }

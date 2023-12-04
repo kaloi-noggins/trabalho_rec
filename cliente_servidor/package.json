@@ -2,15 +2,17 @@
   "name": "client",
   "version": "1.0.0",
   "description": "cliente/servidor do trabalho final de redes de computadores",
-  "main": "client.js",
+  "main": "client.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node cliente.js",
-    "start_dev": "nodemon cliente.js"
+    "start_dev": "npx nodemon"
   },
   "author": "Amyr, Kalyl",
   "license": "GPL-3.0",
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@types/node": "^20.10.2",
+    "nodemon": "^3.0.2",
+    "typescript": "^5.3.2"
   }
 }

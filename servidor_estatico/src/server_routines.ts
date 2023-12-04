@@ -23,7 +23,7 @@ export async function SET(connectedHosts: ConnectedHosts[], serverUuid: string, 
             }
             host.socket.write(JSON.stringify(updateMessage))
         })
-        return "clientes/servidores atualizados"
+        return "estado dos clientes/servidores atualizado"
     } catch (error) {
         return error
     }
@@ -55,7 +55,7 @@ export async function NOTIFY(host: Socket, serverUuid: string, message_payload: 
  */
 export async function saveState(knownHosts: HostInfo[]) {
     // atualiza a lista em disco
-    writeFile(join(__dirname, "..", "conf", "config.json"), JSON.stringify(knownHosts), (err) => {
+    writeFile(join(__dirname, "..", "conf", "known_hosts.json"), JSON.stringify(knownHosts), (err) => {
         if (err) {
             console.error(err)
         } else {
