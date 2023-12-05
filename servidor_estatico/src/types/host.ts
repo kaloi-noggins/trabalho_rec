@@ -32,8 +32,3 @@ export type HostInfo = {
     files: string[],
     lastOnline: string
 }
-
-export type ConnectedHosts ={
-    socket: Socket,
-    uuid: string
-}

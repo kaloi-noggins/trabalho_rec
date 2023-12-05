@@ -1,9 +1,1 @@
-{
-  "hostUUID": null,
-  "hostIP": null,
-  "hostPort": null,
-  "serverUUID": null,
-  "serverIP": "127.0.0.1",
-  "serverPort": 9000,
-  "filePath": null
-}
+{"clientUUID":"b9bc3e63-d559-4ffd-b0e3-b27c772acad6","serverUUID":"ef83274c-4c65-4187-b2df-8687e40052b4","serverIP":"127.0.0.1","serverPort":9000}

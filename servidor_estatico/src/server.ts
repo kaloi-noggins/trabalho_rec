@@ -1,205 +1,132 @@
-import { createServer } from "net";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "./types/config";
-import { HostInfo, ConnectedHosts } from "./types/host";
+import { HostInfo } from "./types/host";
 import { Message } from "./types/message";
 import { randomUUID } from "crypto";
-import { NOTIFY, SET, saveState } from "./server_routines";
+import { NOTIFY, propagate, saveState } from "./server_routines";
+import { createSocket } from "dgram";
 
 
 // configuração de ip e porta do servidor estático e leitura da lista de hosts conhecidos e suas configurações
 const config: Config = JSON.parse(readFileSync(join(__dirname, "..", "conf", "config.json"), "utf-8"));
 const serverUUID = config.uuid;
-const port = config.port;
-const host = config.ip;
+const serverPort = config.port;
+const serverIp = config.ip;
 
 const knowHosts: HostInfo[] = JSON.parse(
   readFileSync(join(__dirname, "..", "conf", "known_hosts.json"), "utf-8")
 );
 
-const connectedHosts: ConnectedHosts[] = []
+// criação do socket de troca de mensagens entre Servidor Estático e Cliente/Servidor
+const socket = createSocket("udp4")
 
-// tratamento de eventos emitidos pelos cliente/servidor
-const server = createServer((socket) => {
+socket.on('message', (bufferedMessage: Buffer, remoteInfo) => {
+  const message: Message = JSON.parse(bufferedMessage.toString())
 
-  socket.on("connect", () => {
-    console.log(`Novo cliente/servidor conectado: ${socket.remoteAddress?.toString()}:${socket.remotePort}`)
-    console.log(`Numero de clientes/servidores conectados: ${connectedHosts.length}`)
-  })
+  console.log("Mensagem:")
+  console.log(message)
+  console.log(`Host: ${remoteInfo.address}:${remoteInfo.port}`)
 
-  // tratamento do envio de dados pelos hosts
-  socket.on("data", (messageBuffer: Buffer) => {
+  const messageUUID = message.uuid
+  const messageType = message.message_type
+  const messagePayload = message.payload
 
-    // transformação do buffer binário em um string
-    const message: Message = JSON.parse(messageBuffer.toString())
+  const foundClient = knowHosts.find((host) => host.uuid === messageUUID)
 
-    // tratamento da mensagem enviada pelo host
-    const message_type = message.message_type;
-    const payload = message.payload
-    const host = knowHosts.find((host) => { host.uuid === message.uuid })
+  switch (messageType) {
+    case "NOTIFY":
+      switch (messagePayload) {
+        case "connection":
 
+          // checa se o host informou uma UUID, senão, gera uma
+          // nova UUID e o insere na lista de clientes conhecidos  
+          if (messageUUID) {
 
-    console.log(`Mensagem recebida:\n${JSON.stringify(message)}`)
-
-    switch (message_type) {
-      case "NOTIFY":
-        switch (payload) {
-          case "connection":
-            // checa se o host conectado reportou uma UUID. 
-            // Se sim atualiza as informações da lista de hosts conhecido
-            // Se não, gera uma UUID para o host e o insere na list de
-            // hosts conhecidos
-            if (message.uuid) {
-
-              const newConnectedHost = knowHosts.find((host) => host.uuid === message.uuid)!
-              newConnectedHost.ip = socket.remoteAddress!
-              newConnectedHost.porta = socket.remotePort!
-              newConnectedHost.lastOnline = new Date().toISOString()
-              newConnectedHost.status = "online"
-
-
-              // insere o host na list de hosts conectados
-              connectedHosts.push({ socket: socket, uuid: message.uuid })
-            } else {
-
-              const ip = socket.remoteAddress!
-              const port = socket.remotePort!
-              const newConnectedHost: HostInfo = {
-                status: "online",
-                uuid: randomUUID(),
-                ip: ip,
-                porta: port,
-                files: [],
-                lastOnline: new Date().toISOString()
-
-              }
-              // atualiza a lista em memoria
-              knowHosts.push(newConnectedHost)
-              // atualiza a lista em disco
-              saveState(knowHosts);
-              // insere o host na list de hosts conectados
-              connectedHosts.push({ socket: socket, uuid: newConnectedHost.uuid });
-
-              // atribui uuid ao novo host
-              const setUUIDMessage: Message = {
-                uuid: serverUUID,
-                message_type: "SET",
-                payload: newConnectedHost.uuid
-              }
-
-              socket.write(JSON.stringify(setUUIDMessage))
-
-              console.log(`Novo host registrado: ${newConnectedHost.uuid}`)
-            }
-            // propaga as mudanças para os demais hosts
-            SET(connectedHosts, serverUUID, knowHosts).then((info) => {
-              console.log(info)
-            }).catch((err) => {
-              console.error(err)
-            })
-            break;
-          default:
-            console.error(`Payload NOTIFY mal formatado do host ${socket.remoteAddress?.toString()}:${socket.remotePort}`)
-            break;
-        }
-        break;
-      case "UPLOAD":
-        if (typeof payload === 'string') {
-          // insere arquivo na lista de arquivos do host
-
-          if (host) {
-            host.files.push(payload)
-            host.lastOnline = new Date().toISOString()
-
-            // atualiza a lista em disco
-            saveState(knowHosts);
-
-            // propaga as mudanças para os demais hosts
-            SET(connectedHosts, serverUUID, knowHosts).then((info) => {
-              console.log(info)
-            }).catch((err) => {
-              console.error(err)
-            })
-          }
-
-        } else {
-          console.error("Payload do tipo HostInfo[] em UPLOAD")
-        }
-
-        break;
-      case "DELETE":
-
-        if (typeof payload === 'string') {
-
-          // encontra o indice do arquivo marcado para deleção e o remove da lista
-          const deletionIndex = host?.files.indexOf(payload)
-
-          // checa se existe pelo menos uma ocorrencia da string enviada
-          if (deletionIndex != -1 && deletionIndex && host) {
-            host.files.splice(deletionIndex, 1)
-            host.lastOnline = new Date().toISOString()
-            // propaga as mudanças para os demais hosts
-            SET(connectedHosts, serverUUID, knowHosts).then((info) => {
-              console.log(info)
-            }).catch((err) => {
-              console.error(err)
-            })
-
-            // atualiza a lista em disco
-            saveState(knowHosts);
+            const newConnectedHost = knowHosts.find((host) => host.uuid === message.uuid)!
+            newConnectedHost.ip = remoteInfo.address
+            newConnectedHost.porta = remoteInfo.port
+            newConnectedHost.lastOnline = new Date().toISOString()
+            newConnectedHost.status = "online"
 
           } else {
-            // envia uma mensage ao host o informando que o item não existe
-            NOTIFY(socket, serverUUID, "NOT FOUND")
+
+            const newConnectedHost: HostInfo = {
+              status: "online",
+              uuid: randomUUID(),
+              ip: remoteInfo.address,
+              porta: remoteInfo.port,
+              files: [],
+              lastOnline: new Date().toISOString()
+            }
+
+            // atualiza a lista de clientes conhecidos em memória e disco
+            knowHosts.push(newConnectedHost)
+            saveState(knowHosts)
+
+            // preapara uma mensagem para atribuição de uma UUID ao cliente
+            const setUUIDMessage: Message = {
+              uuid: serverUUID,
+              message_type: "SET",
+              payload: newConnectedHost.uuid
+            }
+            socket.send(JSON.stringify(setUUIDMessage), newConnectedHost.porta, newConnectedHost.ip)
+
           }
 
+          // propaga o estado atual para todos os clientes
+          propagate(serverUUID, knowHosts)
+
+          break;
+        case "disconnnection":
+          const endingConnectionHost = knowHosts.find((host) => host.uuid === message.uuid)!
+          endingConnectionHost.status = "offline"
+          endingConnectionHost.lastOnline = new Date().toISOString()
+          saveState(knowHosts)
+          propagate(serverUUID, knowHosts)
+          break;
+        default:
+          //console.log(`Mensagem mal formatada do host ${remoteInfo.address}:${remoteInfo.port}`)
+          throw new Error(`Mensagem mal formatada do host ${remoteInfo.address}:${remoteInfo.port}`);
+          break;
+      }
+      break;
+    case "UPLOAD":
+      // checa se o cliente existe e atualiza ultima data online e lista de arquivos
+      if (foundClient) {
+        foundClient.files.push(messagePayload)
+        foundClient.lastOnline = new Date().toISOString()
+        saveState(knowHosts)
+        propagate(serverUUID, knowHosts)
+      }
+      break;
+    case "DELETE":
+      //checa se o cliente existe e atualiza ultima data online e lista de arquivos
+      if (foundClient) {
+        const deletionIndex = foundClient.files.findIndex((filename) => filename == messagePayload)
+        if (deletionIndex != 1) {
+          foundClient.files.splice(deletionIndex, 1)
+          foundClient.lastOnline = new Date().toISOString()
+          saveState(knowHosts)
+          propagate(serverUUID, knowHosts)
         } else {
-          console.error("Payload do tipo HostInfo[] em DELETE")
+          // se arquivo não encontra, notifica cliente que arquivo não foi encontrado
+          const notFoundMessage: Message = {
+            uuid: serverUUID,
+            message_type: "NOTIFY",
+            payload: "not found"
+          }
+          socket.send(JSON.stringify(notFoundMessage), foundClient.porta, foundClient.ip)
         }
+      }
+      break;
+    default:
+      //console.log(`Mensagem mal formatada do host ${remoteInfo.address}:${remoteInfo.port}`)
+      throw new Error(`Mensagem mal formatada do host ${remoteInfo.address}:${remoteInfo.port}`);
+      break;
+  }
+})
 
-        break;
-      default:
-        console.error(`Mensagem mal formatada do host ${socket.remoteAddress?.toString()}:${socket.remotePort}`)
-        break;
-    }
-  })
+socket.bind(serverPort, serverIp)
 
-  // tratamento da desconexão de um host
-  socket.on("close", () => {
-
-    // encontra o socket que está se desconectando
-    const closingSocket = connectedHosts.find((connectedHosts) => {
-      !connectedHosts.socket.destroyed
-    })
-
-    if (closingSocket) {
-
-      console.log(closingSocket)
-
-      // encontra o host associado ao socket
-      const closingKnownHost = knowHosts.find((host) => {
-        host.uuid = closingSocket.uuid
-      })!
-
-      // atualiza o status do host na lista
-      closingKnownHost.status = "offline"
-      closingKnownHost.lastOnline = new Date().toISOString()
-
-      // atualiza a lista em disco
-      saveState(knowHosts);
-
-      // remove o host da lista hosts conectados
-      connectedHosts.slice(connectedHosts.indexOf(closingSocket), 1)
-
-      // propaga o estado para os demais hosts
-      SET(connectedHosts, serverUUID, knowHosts)
-    }
-  })
-});
-
-// inicia o servidor estático
-server.listen(port, host, () => {
-  console.log(`Servidor Estático escutando em ${host}:${port}`);
-  console.log(`Hosts carregados do arquivo: ${knowHosts.length}`)
-});
+console.log(`Servidor inicializado. Clientes já conhecidos: ${knowHosts.length}`)

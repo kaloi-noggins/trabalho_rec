@@ -1,8 +1,9 @@
-import { Socket } from "net";
-import { ConnectedHosts, HostInfo } from "./types/host";
+import { createSocket } from "dgram";
+import { HostInfo } from "./types/host";
 import { Message } from "./types/message";
 import { writeFile } from "fs";
 import { join } from "path";
+import { Socket } from "net";
 
 /**
  * 
@@ -12,16 +13,23 @@ import { join } from "path";
  * @param serverUuid UUID do Servidor Estático
  * @param knowHosts Lista com o estado atual de todos os Clientes/Servidores
  */
-export async function SET(connectedHosts: ConnectedHosts[], serverUuid: string, knowHosts: HostInfo[]) {
+export async function propagate(serverUuid: string, knowHosts: HostInfo[]) {
+
+    // cria o socket UDP para envio da mensagem
+    const socket = createSocket('udp4')
 
     try {
-        connectedHosts.forEach((host) => {
+        knowHosts.forEach((host) => {
             const updateMessage: Message = {
                 uuid: serverUuid,
                 message_type: "SET",
-                payload: knowHosts
+                payload: JSON.stringify(knowHosts)
             }
-            host.socket.write(JSON.stringify(updateMessage))
+            socket.send(JSON.stringify(updateMessage), host.porta, host.ip, (err) => {
+                if (err) {
+                    console.log(err)
+                }
+            })
         })
         return "estado dos clientes/servidores atualizado"
     } catch (error) {
