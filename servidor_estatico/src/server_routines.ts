@@ -1,5 +1,5 @@
 import { createSocket } from "dgram";
-import { HostInfo } from "./types/host";
+import { ActiveConnection, HostInfo } from "./types/host";
 import { Message } from "./types/message";
 import { writeFile } from "fs";
 import { join } from "path";
@@ -12,6 +12,7 @@ import { Socket } from "net";
  * @param connectedHosts Lista de Clientes/Servidores conectados atualmente ao Servidor Estático
  * @param serverUuid UUID do Servidor Estático
  * @param knowHosts Lista com o estado atual de todos os Clientes/Servidores
+ * 
  */
 export async function propagate(serverUuid: string, knowHosts: HostInfo[]) {
 
@@ -37,6 +38,20 @@ export async function propagate(serverUuid: string, knowHosts: HostInfo[]) {
     }
 
 }
+
+export async function propagate_TCP(serverUUID: string, knowHosts: HostInfo[], activeConnections: Socket[]) {
+    activeConnections.forEach(socket => {
+
+        const updateMessage: Message = {
+            uuid: serverUUID,
+            message_type: "SET",
+            payload: JSON.stringify(knowHosts)
+        }
+        
+        socket.write(JSON.stringify(updateMessage))
+    })
+}
+
 
 /**
  * Envia uma mesnagem do tipo NOTIFY a algum Cliente/Servidor

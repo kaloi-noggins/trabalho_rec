@@ -33,8 +33,7 @@ export type HostInfo = {
     lastOnline: string
 }
 
-export type ActiveConnection = {
+export type ConnectedHosts ={
     socket: Socket,
-    ip: string,
-    port: number
+    uuid: string
 }

@@ -64,7 +64,7 @@ const staticServerChannel = createConnection({ host: serverIP, port: serverPort 
 
 staticServerChannel.on('data', (data) => {
     const message: Message = JSON.parse(data.toString())
-
+    
     const messageUUID = message.uuid
     const messageType = message.message_type
     const messagePayload = message.payload
