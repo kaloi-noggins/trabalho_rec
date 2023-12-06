@@ -9,7 +9,7 @@ A solução que propomos consiste em uma arquitetura mista de cliente/servidor e
 ``` bash
 npm install
 ```
-Este comando irá instalar as dependências de cada um dos 4 programas. Execute primeiro o servidor estático e depois os clientes. Para executar qualquer um dos 3, num terminal dentro dos respectivos projetos, execute:
+Este comando irá instalar as dependências de cada um dos 4 programas. Execute primeiro o servidor estático e depois os clientes. Para executar qualquer um dos 4, num terminal dentro dos respectivos projetos, execute:
 
 ``` bash
 npm run start_dev
